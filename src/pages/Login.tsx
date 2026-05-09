@@ -1,21 +1,27 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Bot } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export default function Login() {
+interface LoginPageProps {
+  onLogin: (email: string, password: string) => void;
+}
+
+export default function Login({ onLogin }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login attempt:', { email, password });
-    // In actual use, validation would happen here
+    setError('');
+    
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    onLogin(email, password);
   };
 
   return (
@@ -86,6 +92,13 @@ export default function Login() {
               <span>Internal Network Only</span>
             </div>
           </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-semibold flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0" />
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">

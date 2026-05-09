@@ -1,25 +1,21 @@
 import { 
-  MessageSquare, 
-  Settings, 
-  LogOut, 
-  CheckCircle2, 
-  HelpCircle, 
   Menu, 
-  X,
   Paperclip,
   Send,
   ShieldCheck,
-  Bot
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ChatBubble from '../elements/ChatBubble';
+import Sidebar from '../elements/Sidebar';
 import { useState } from 'react';
 
 interface ChatPageProps {
   onLogout: () => void;
+  onNavigate: (page: 'chat' | 'admin') => void;
+  userRole?: 'user' | 'admin';
 }
 
-export default function Chat({ onLogout }: ChatPageProps) {
+export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPageProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [input, setInput] = useState('');
 
@@ -56,54 +52,14 @@ export default function Chat({ onLogout }: ChatPageProps) {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ x: isSidebarOpen ? 0 : -300 }}
-        className={`fixed lg:relative lg:translate-x-0 w-[280px] h-full bg-white border-r border-gray-100 flex flex-col z-50 transition-transform duration-300 ease-in-out`}
-      >
-        <div className="p-6 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[#004aad]">
-            <Bot className="w-6 h-6" />
-            <span className="text-xl font-bold tracking-tight">SEJAHE</span>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-400">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-1">
-          <button className="w-full flex items-center gap-4 px-4 py-3 bg-blue-50 text-[#004aad] rounded-xl font-semibold transition-all border-r-4 border-[#004aad]">
-            <MessageSquare className="w-5 h-5" />
-            Chat
-          </button>
-          <button className="w-full flex items-center gap-4 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl font-semibold transition-all">
-            <Settings className="w-5 h-5" />
-            Pengaturan
-          </button>
-        </nav>
-
-        <div className="p-6 border-t border-gray-50 space-y-4">
-          <button 
-            onClick={onLogout}
-            className="w-full py-4 border border-red-200 text-red-500 rounded-full font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2"
-          >
-            <LogOut className="w-4 h-4" />
-            Log Out
-          </button>
-          
-          <div className="space-y-3 pt-4">
-            <div className="flex items-center gap-3 text-sm font-medium text-gray-500">
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
-              System Status
-            </div>
-            <div className="flex items-center gap-3 text-sm font-medium text-gray-500">
-              <HelpCircle className="w-4 h-4" />
-              Help
-            </div>
-          </div>
-        </div>
-      </motion.aside>
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+        onLogout={onLogout} 
+        currentPage="chat"
+        onNavigate={onNavigate}
+        userRole={userRole}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 bg-white lg:bg-[#f8fafc]">
@@ -121,7 +77,7 @@ export default function Chat({ onLogout }: ChatPageProps) {
 
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <div className="text-sm font-bold text-gray-900">Raffi Adyatma</div>
+              <div className="text-sm font-bold text-gray-900">Karyawan</div>
               <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">IT Engineer</div>
             </div>
             <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden">
