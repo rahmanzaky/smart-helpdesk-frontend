@@ -1,35 +1,43 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import Login from './pages/Login';
+import Chat from './pages/Chat';
+import Admin from './pages/Admin';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState<'user' | 'admin'>('user');
+  const [currentPage, setCurrentPage] = useState<'chat' | 'admin'>('chat');
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+  const handleLogin = (email: string, pass: string) => {
+    if (email === 'admin@admin' && pass === 'admin') {
+      setUserRole('admin');
+      setIsLoggedIn(true);
+      setCurrentPage('admin');
+    } else {
+      setUserRole('user');
+      setIsLoggedIn(true);
+      setCurrentPage('chat');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
+  const handleNavigate = (page: 'chat' | 'admin') => {
+    if (page === 'admin' && userRole !== 'admin') {
+      return;
+    }
+    setCurrentPage(page);
+  };
+
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  return currentPage === 'chat' ? (
+    <Chat onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} />
+  ) : (
+    <Admin onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} />
+  );
 }
-
-export default App
