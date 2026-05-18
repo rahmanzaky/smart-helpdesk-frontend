@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Bot } from 'lucide-react';
 import { motion } from 'motion/react';
+import type { UserInfo } from '../App';
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (user: UserInfo) => void;
 }
 
 export default function Login({ onLogin }: LoginPageProps) {
@@ -11,17 +12,36 @@ export default function Login({ onLogin }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
 
-    onLogin(email, password);
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || 'Login failed');
+        return;
+      }
+      onLogin(json.data);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -150,10 +170,11 @@ export default function Login({ onLogin }: LoginPageProps) {
 
             <button
               type="submit"
-              className="w-full bg-[#004aad] dark:bg-blue-600 text-white py-5 rounded-full font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-700 dark:hover:bg-blue-500 active:scale-[0.98] transition-all shadow-xl shadow-blue-200 dark:shadow-none"
+              disabled={isLoading}
+              className="w-full bg-[#004aad] dark:bg-blue-600 text-white py-5 rounded-full font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-700 dark:hover:bg-blue-500 active:scale-[0.98] transition-all shadow-xl shadow-blue-200 dark:shadow-none disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Sign In
-              <ArrowRight className="h-5 w-5 font-bold" />
+              {isLoading ? 'Signing in...' : 'Sign In'}
+              {!isLoading && <ArrowRight className="h-5 w-5 font-bold" />}
             </button>
           </form>
 

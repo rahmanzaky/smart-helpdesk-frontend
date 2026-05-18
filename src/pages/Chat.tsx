@@ -1,19 +1,22 @@
-import { 
-  Menu, 
+import {
+  Menu,
   Paperclip,
   Send,
   ShieldCheck,
   X,
+  Plus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ChatBubble from '../elements/ChatBubble';
 import Sidebar from '../elements/Sidebar';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import type { UserInfo } from '../App';
 
 interface ChatPageProps {
   onLogout: () => void;
   onNavigate: (page: 'chat' | 'admin' | 'settings') => void;
   userRole?: 'user' | 'admin';
+  user?: UserInfo | null;
 }
 
 interface Message {
@@ -23,18 +26,41 @@ interface Message {
   timestamp: string;
 }
 
-export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPageProps) {
+const WELCOME_MESSAGE: Message = {
+  role: 'bot',
+  content: 'Halo! saya adalah chatbot, apa yang bisa dibantu?',
+  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+};
+
+function apiMessagesToUI(apiMessages: any[]): Message[] {
+  const result: Message[] = [];
+  const ordered = [...apiMessages].reverse();
+  for (const m of ordered) {
+    result.push({
+      role: 'user',
+      content: m.message,
+      imageUrl: m.attachments?.[0]?.url,
+      timestamp: new Date(m.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
+    if (m.reply) {
+      result.push({
+        role: 'bot',
+        content: m.reply,
+        timestamp: new Date(m.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      });
+    }
+  }
+  return result;
+}
+
+export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: ChatPageProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [input, setInput] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'bot',
-      content: 'Halo! saya adalah chatbot, apa yang bisa dibantu?',
-      timestamp: '12:44 PM'
-    }
-  ]);
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
+  const [chatId, setChatId] = useState<number | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,7 +68,7 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
         top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth'
+        behavior: 'smooth',
       });
     }
   };
@@ -51,42 +77,106 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSendMessage = (e?: React.FormEvent) => {
+  // Load most recent chat on mount
+  useEffect(() => {
+    fetch('/api/v1/chat/chats', { credentials: 'include' })
+      .then(r => r.json())
+      .then(json => {
+        if (json.data?.length > 0) {
+          const recent = json.data[0];
+          setChatId(recent.id);
+          return fetch(`/api/v1/chat/messages?cid=${recent.id}`, { credentials: 'include' })
+            .then(r => r.json())
+            .then(msgJson => {
+              if (msgJson.data?.length > 0) {
+                setMessages(apiMessagesToUI(msgJson.data));
+              }
+            });
+        }
+      })
+      .catch(err => console.error('Failed to load chats:', err));
+  }, []);
+
+  const startNewChat = useCallback(() => {
+    setChatId(null);
+    setMessages([WELCOME_MESSAGE]);
+  }, []);
+
+  const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() && !selectedImage) return;
+    if (!input.trim() && !selectedImageFile) return;
 
-    const userMessage: Message = {
+    const messageText = input.trim() || 'Saya mengunggah gambar untuk dianalisis.';
+    const imageFile = selectedImageFile;
+    const imagePreview = selectedImagePreview;
+
+    // Optimistically show user message
+    setMessages(prev => [...prev, {
       role: 'user',
-      content: input || (selectedImage ? 'Saya mengunggah gambar untuk dianalisis.' : ''),
-      imageUrl: selectedImage || undefined,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+      content: messageText,
+      imageUrl: imagePreview || undefined,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }]);
     setInput('');
-    setSelectedImage(null);
-    simulateBotResponse();
-  };
-
-  const simulateBotResponse = () => {
+    setSelectedImageFile(null);
+    setSelectedImagePreview(null);
     setIsTyping(true);
-    setTimeout(() => {
-      const botMessage: Message = {
+
+    try {
+      // Create a chat session if this is the first message
+      let cid = chatId;
+      if (!cid) {
+        const chatRes = await fetch('/api/v1/chat/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ title: messageText.slice(0, 60) }),
+        });
+        const chatJson = await chatRes.json();
+        cid = chatJson.data.id;
+        setChatId(cid);
+      }
+
+      // Send message (multipart so we can attach image)
+      const formData = new FormData();
+      formData.append('chatId', String(cid));
+      formData.append('message', messageText);
+      if (imageFile) {
+        formData.append('file', imageFile);
+      }
+
+      const msgRes = await fetch('/api/v1/chat/messages', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const msgJson = await msgRes.json();
+      const saved = msgJson.data;
+
+      setMessages(prev => [...prev, {
         role: 'bot',
-        content: '¯\\_(ツ)_/¯',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, botMessage]);
+        content: saved?.reply || 'Maaf, layanan AI sedang tidak tersedia.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    } catch (err) {
+      console.error('Send message error:', err);
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        content: 'Maaf, terjadi kesalahan jaringan. Silakan coba lagi.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedImageFile(file);
       const reader = new FileReader();
       reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string);
+        setSelectedImagePreview(event.target?.result as string);
         if (fileInputRef.current) fileInputRef.current.value = '';
       };
       reader.readAsDataURL(file);
@@ -108,10 +198,10 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
         )}
       </AnimatePresence>
 
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-        onLogout={onLogout} 
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLogout={onLogout}
         currentPage="chat"
         onNavigate={onNavigate}
         userRole={userRole}
@@ -129,22 +219,29 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
               <ShieldCheck className="w-3.5 h-3.5" />
               Secure LAN Connection
             </div>
+            <button
+              onClick={startNewChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold text-gray-500 hover:text-[#004aad] hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 border border-gray-200 dark:border-gray-700 uppercase tracking-wider transition-all"
+            >
+              <Plus className="w-3 h-3" />
+              New Chat
+            </button>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <div className="text-sm font-bold text-gray-900 dark:text-white">Karyawan</div>
+              <div className="text-sm font-bold text-gray-900 dark:text-white">{user?.name ?? 'Karyawan'}</div>
               <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">IT Engineer</div>
             </div>
             <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 border-2 border-white dark:border-gray-700 shadow-sm overflow-hidden">
-               <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=raffi" alt="avatar" />
+               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name ?? 'user'}`} alt="avatar" />
             </div>
           </div>
         </header>
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col min-h-0 container mx-auto max-w-5xl">
-          <div 
+          <div
             ref={chatContainerRef}
             className="px-6 py-10 lg:px-10 overflow-y-auto flex-1 space-y-8 scrollbar-hide"
           >
@@ -161,7 +258,9 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
               </div>
               <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl transition-colors duration-300">
                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Session ID</span>
-                 <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-300">QC-9921-X-04 | 12:44 PM</span>
+                 <span className="text-xs font-mono font-bold text-gray-600 dark:text-gray-300">
+                   {chatId ? `CHAT-${chatId}` : 'NEW'} | {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                 </span>
               </div>
             </div>
 
@@ -193,22 +292,22 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
           <div className="px-6 py-6 lg:px-10">
             <form onSubmit={handleSendMessage} className="relative group">
               <AnimatePresence>
-                {selectedImage && (
-                  <motion.div 
+                {selectedImagePreview && (
+                  <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     className="absolute bottom-full left-0 mb-4 p-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-10"
                   >
                     <div className="relative group/preview">
-                      <img 
-                        src={selectedImage} 
-                        alt="Preview" 
+                      <img
+                        src={selectedImagePreview}
+                        alt="Preview"
                         className="w-32 h-32 object-cover rounded-xl border border-gray-50 dark:border-gray-700"
                       />
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => setSelectedImage(null)}
+                        onClick={() => { setSelectedImagePreview(null); setSelectedImageFile(null); }}
                         className="absolute -top-2 -right-2 bg-white dark:bg-gray-800 text-gray-500 p-1.5 rounded-full shadow-md border border-gray-100 dark:border-gray-700 hover:text-red-500 transition-colors"
                       >
                         <X className="w-4 h-4" />
@@ -219,14 +318,14 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
               </AnimatePresence>
 
               <div className="absolute left-6 inset-y-0 flex items-center">
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                  accept="image/*" 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                  className="hidden"
                 />
-                <button 
+                <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="text-gray-400 hover:text-[#004aad] dark:hover:text-blue-400 transition-colors"
@@ -234,17 +333,17 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user' }: ChatPa
                   <Paperclip className="w-5 h-5" />
                 </button>
               </div>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={selectedImage ? "Add a caption to this image..." : "Ask a command or follow-up question..."}
+                placeholder={selectedImagePreview ? "Add a caption to this image..." : "Ask a command or follow-up question..."}
                 className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[2rem] py-6 pl-16 pr-24 outline-none focus:bg-white dark:focus:bg-gray-800 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:border-blue-200 dark:focus:border-blue-800 transition-all font-medium text-gray-700 dark:focus:text-gray-700 dark:text-gray-200 shadow-sm"
               />
               <div className="absolute right-3 inset-y-0 flex items-center">
-                <button 
+                <button
                   type="submit"
-                  disabled={!input.trim() && !selectedImage}
+                  disabled={(!input.trim() && !selectedImageFile) || isTyping}
                   className="bg-[#004aad] dark:bg-blue-600 text-white p-4 rounded-full hover:bg-blue-700 dark:hover:bg-blue-500 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:shadow-none transition-all shadow-lg shadow-blue-200 dark:shadow-none group-active:scale-95"
                 >
                   <Send className="w-5 h-5" />
