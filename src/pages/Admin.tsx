@@ -15,7 +15,7 @@ import ChatSummaryPanel from '../elements/ChatSummaryPanel';
 
 interface AdminPageProps {
   onLogout: () => void;
-  onNavigate: (page: 'chat' | 'admin') => void;
+  onNavigate: (page: 'chat' | 'admin' | 'settings') => void;
   userRole?: 'user' | 'admin';
 }
 
@@ -58,7 +58,7 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
   const tags = ['All', 'T-Stress', 'Alignment', 'Gasket', 'Pressure'];
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans">
+    <div className="flex h-screen bg-[#f8fafc] dark:bg-gray-950 overflow-hidden font-sans transition-colors duration-300">
       {/* Sidebar Overlay (Mobile) */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -82,14 +82,14 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto relative">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto relative bg-[#f8fafc] dark:bg-gray-950 transition-colors duration-300">
         {/* Header */}
-        <header className="h-20 flex items-center justify-between px-6 lg:px-10 bg-white border-b border-gray-50 shrink-0 sticky top-0 z-30">
+        <header className="h-20 flex items-center justify-between px-6 lg:px-10 bg-white dark:bg-gray-900 border-b border-gray-50 dark:border-gray-800 shrink-0 sticky top-0 z-30 transition-colors duration-300">
           <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500">
               <Menu className="w-6 h-6" />
             </button>
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-[10px] font-bold text-[#004aad] uppercase tracking-wider text-nowrap">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full text-[10px] font-bold text-[#004aad] dark:text-blue-400 uppercase tracking-wider text-nowrap transition-colors duration-300">
               <ShieldCheck className="w-3.5 h-3.5" />
               Secure LAN Connection
             </div>
@@ -97,10 +97,10 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
 
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <div className="text-sm font-bold text-gray-900">Admin Panel</div>
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Super User</div>
+              <div className="text-sm font-bold text-gray-900 dark:text-white">Admin Panel</div>
+              <div className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Super User</div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white shadow-sm overflow-hidden">
+            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 border-2 border-white dark:border-gray-700 shadow-sm overflow-hidden">
                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=admin" alt="avatar" />
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
         <div className="p-6 lg:p-10 max-w-[1600px] mx-auto w-full">
           {/* Dashboard Header */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               Log Aktivitas Karyawan
             </h1>
             
@@ -119,12 +119,12 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                 <input 
                   type="text" 
                   placeholder="Cari Karyawan..."
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 transition-all text-sm font-medium"
+                  className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all text-sm font-medium dark:text-gray-200"
                 />
               </div>
               <button 
                 onClick={() => setIsFilterOpen(true)}
-                className="lg:hidden flex items-center justify-center gap-2 px-6 py-3 bg-[#004aad] text-white rounded-xl font-bold"
+                className="lg:hidden flex items-center justify-center gap-2 px-6 py-3 bg-[#004aad] dark:bg-blue-600 text-white rounded-xl font-bold"
               >
                 <Filter className="w-4 h-4" />
                 Filter
@@ -148,30 +148,30 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
 
             {/* Filter Sidebar (Desktop) */}
             <aside className="hidden lg:block w-72 shrink-0 space-y-6">
-              <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm sticky top-28">
+              <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-sm sticky top-28 transition-colors duration-300">
                 <div className="flex items-center gap-2 mb-8">
-                   <Filter className="w-5 h-5 text-gray-900" />
-                   <h2 className="font-extrabold text-lg text-gray-900 tracking-tight">Filter Pencarian</h2>
+                   <Filter className="w-5 h-5 text-gray-900 dark:text-gray-100" />
+                   <h2 className="font-extrabold text-lg text-gray-900 dark:text-white tracking-tight">Filter Pencarian</h2>
                 </div>
 
                 <div className="space-y-6">
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-4">Rentang Tanggal</label>
+                    <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-4">Rentang Tanggal</label>
                     <div className="space-y-3">
                       <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="text" placeholder="dd/mm/yyyy" className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-xl text-xs font-bold outline-none" />
+                        <input type="text" placeholder="dd/mm/yyyy" className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs font-bold outline-none dark:text-gray-200" />
                       </div>
-                      <div className="text-center text-[10px] font-bold text-gray-300">TO</div>
+                      <div className="text-center text-[10px] font-bold text-gray-300 dark:text-gray-700">TO</div>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="text" placeholder="dd/mm/yyyy" className="w-full pl-10 pr-4 py-3 bg-gray-50 border-none rounded-xl text-xs font-bold outline-none" />
+                        <input type="text" placeholder="dd/mm/yyyy" className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs font-bold outline-none dark:text-gray-200" />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-4">Tipe Masalah</label>
+                    <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-4">Tipe Masalah</label>
                     <div className="flex flex-wrap gap-2">
                       {tags.map(tag => (
                         <button 
@@ -179,8 +179,8 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                           onClick={() => setSelectedTag(tag)}
                           className={`px-4 py-2 rounded-full text-[10px] font-bold transition-all ${
                             selectedTag === tag 
-                              ? 'bg-[#004aad] text-white shadow-lg shadow-blue-100' 
-                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                              ? 'bg-[#004aad] dark:bg-blue-600 text-white shadow-lg shadow-blue-100 dark:shadow-none' 
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                           }`}
                         >
                           {tag}
@@ -189,7 +189,7 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                     </div>
                   </div>
 
-                  <button className="w-full bg-[#004aad] text-white py-4 rounded-xl font-bold text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all mt-4">
+                  <button className="w-full bg-[#004aad] dark:bg-blue-600 text-white py-4 rounded-xl font-bold text-sm shadow-xl shadow-blue-100 dark:shadow-none hover:bg-blue-700 dark:hover:bg-blue-500 transition-all mt-4">
                     Apply Filters
                   </button>
                 </div>
