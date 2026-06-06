@@ -4,7 +4,6 @@ import {
   Send,
   ShieldCheck,
   X,
-  Plus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ChatBubble from '../elements/ChatBubble';
@@ -275,13 +274,6 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
               <ShieldCheck className="w-3.5 h-3.5" />
               Secure LAN Connection
             </div>
-            <button
-              onClick={startNewChat}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold text-gray-500 hover:text-[#004aad] hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 border border-gray-200 dark:border-gray-700 uppercase tracking-wider transition-all"
-            >
-              <Plus className="w-3 h-3" />
-              New Chat
-            </button>
           </div>
 
           <div className="flex items-center gap-4">
