@@ -95,24 +95,12 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
       });
   }, []);
 
-  // Load chat list and open most recent on mount
+  // Load chat list for sidebar on mount (don't auto-open any chat)
   useEffect(() => {
-    loadChats()
-      .then(data => {
-        if (data?.length > 0) {
-          const recent = data[0];
-          setChatId(recent.id);
-          return fetch(`/api/v1/chat/messages?cid=${recent.id}`, { credentials: 'include' })
-            .then(r => r.json())
-            .then(msgJson => {
-              if (msgJson.data?.length > 0) setMessages(apiMessagesToUI(msgJson.data));
-            });
-        }
-      })
-      .catch(err => {
-        console.error('Failed to load chats:', err);
-        setFetchError('Failed to load chat history. Please refresh the page.');
-      });
+    loadChats().catch(err => {
+      console.error('Failed to load chats:', err);
+      setFetchError('Failed to load chat history. Please refresh the page.');
+    });
   }, [loadChats]);
 
   const selectChat = useCallback((id: number) => {
