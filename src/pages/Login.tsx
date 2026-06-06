@@ -29,7 +29,7 @@ export default function Login({ onLogin }: LoginPageProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -130,7 +130,7 @@ export default function Login({ onLogin }: LoginPageProps) {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.toLowerCase())}
                   className="block w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl focus:ring-2 focus:ring-[#004aad] dark:focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-all outline-none text-gray-800 dark:text-white dark:focus:text-gray-800 placeholder-gray-400 font-medium"
                   placeholder="engineer@epson.com"
                   required
