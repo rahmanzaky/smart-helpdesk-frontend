@@ -18,14 +18,17 @@ interface SettingsPageProps {
 export default function Settings({ onLogout, onNavigate, userRole = 'user' }: SettingsPageProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    return document.documentElement.classList.contains('dark');
+    const saved = localStorage.getItem('theme');
+    return saved ? saved === 'dark' : document.documentElement.classList.contains('dark');
   });
 
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 

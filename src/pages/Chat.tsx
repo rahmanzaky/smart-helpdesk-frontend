@@ -87,7 +87,7 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
 
   const loadChats = useCallback(() => {
     return fetch('/api/v1/chat/chats', { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(json => {
         if (json.data) setChats(json.data);
         return json.data as ChatSession[];
@@ -107,11 +107,14 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
     setMessages([WELCOME_MESSAGE]);
     setSidebarOpen(false);
     fetch(`/api/v1/chat/messages?cid=${id}`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(msgJson => {
         if (msgJson.data?.length > 0) setMessages(apiMessagesToUI(msgJson.data));
       })
-      .catch(err => console.error('Failed to load messages:', err));
+      .catch(err => {
+        console.error('Failed to load messages:', err);
+        setFetchError('Gagal memuat pesan. Silakan coba lagi.');
+      });
   }, []);
 
   const startNewChat = useCallback(() => {
@@ -126,13 +129,19 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chatId: id }),
-    }).then(() => {
-      setChats(prev => prev.filter(c => c.id !== id));
-      if (chatId === id) {
-        setChatId(null);
-        setMessages([WELCOME_MESSAGE]);
-      }
-    }).catch(err => console.error('Failed to delete chat:', err));
+    })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); })
+      .then(() => {
+        setChats(prev => prev.filter(c => c.id !== id));
+        if (chatId === id) {
+          setChatId(null);
+          setMessages([WELCOME_MESSAGE]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to delete chat:', err);
+        setFetchError('Gagal menghapus sesi chat. Silakan coba lagi.');
+      });
   }, [chatId]);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -165,6 +174,7 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
           credentials: 'include',
           body: JSON.stringify({ title: messageText.slice(0, 60) }),
         });
+        if (!chatRes.ok) throw new Error('Gagal membuat sesi chat baru.');
         const chatJson = await chatRes.json();
         cid = chatJson.data.id;
         setChatId(cid);
@@ -184,6 +194,7 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
         credentials: 'include',
         body: formData,
       });
+      if (!msgRes.ok) throw new Error('Gagal mengirim pesan.');
       const msgJson = await msgRes.json();
       const saved = msgJson.data;
 
@@ -194,11 +205,15 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
       }]);
     } catch (err) {
       console.error('Send message error:', err);
-      setMessages(prev => [...prev, {
-        role: 'bot',
-        content: 'Maaf, terjadi kesalahan jaringan. Silakan coba lagi.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      }]);
+      // Remove the optimistic user message and show error
+      setMessages(prev => {
+        const withoutOptimistic = prev.slice(0, -1);
+        return [...withoutOptimistic, {
+          role: 'bot',
+          content: err instanceof Error ? err.message : 'Maaf, terjadi kesalahan. Silakan coba lagi.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }];
+      });
     } finally {
       setIsTyping(false);
     }

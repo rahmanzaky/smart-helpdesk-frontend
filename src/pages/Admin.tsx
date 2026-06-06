@@ -646,6 +646,13 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin', curren
           tags={tags}
           selectedTag={selectedTag}
           setSelectedTag={setSelectedTag}
+          startDate={startDate}
+          endDate={endDate}
+          onApply={(start, end) => {
+            setStartDate(start);
+            setEndDate(end);
+            fetchLogs(start || undefined, end || undefined);
+          }}
         />
 
         {/* Add User Modal */}
