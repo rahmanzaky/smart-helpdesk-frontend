@@ -34,13 +34,10 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, onClose, onLogout, currentPage, onNavigate, userRole = 'user', chats = [], activeChatId, onSelectChat, onNewChat, onDeleteChat }: SidebarProps) {
-  const [isLargeScreen, setIsLargeScreen] = useState(false);
+  const [isLargeScreen, setIsLargeScreen] = useState(() => window.innerWidth >= 1024);
 
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsLargeScreen(window.innerWidth >= 1024);
-    };
-    checkScreenSize();
+    const checkScreenSize = () => setIsLargeScreen(window.innerWidth >= 1024);
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
@@ -49,7 +46,7 @@ export default function Sidebar({ isOpen, onClose, onLogout, currentPage, onNavi
     <motion.aside
       initial={false}
       animate={{ x: isLargeScreen ? 0 : (isOpen ? 0 : -300) }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      transition={isLargeScreen ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 200 }}
       className={`fixed lg:relative lg:translate-x-0 w-[280px] h-full bg-white border-r border-gray-100 flex flex-col z-50 dark:bg-gray-900 dark:border-gray-800`}
     >
       <div className="p-6 flex items-center justify-between">
