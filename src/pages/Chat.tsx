@@ -5,10 +5,6 @@ import {
   ShieldCheck,
   X,
   Plus,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ChatBubble from '../elements/ChatBubble';
@@ -60,7 +56,6 @@ function apiMessagesToUI(apiMessages: any[]): Message[] {
 interface ChatSession {
   id: number;
   title: string;
-  summary?: string | null;
   createdTime: string;
 }
 
@@ -75,8 +70,6 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
-  const [isSummarizing, setIsSummarizing] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,35 +115,10 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
       });
   }, [loadChats]);
 
-  const activeSummary = chats.find(c => c.id === chatId)?.summary ?? null;
-
-  const generateSummary = useCallback(async () => {
-    if (!chatId || messages.length <= 1) return;
-    setIsSummarizing(true);
-    try {
-      const res = await fetch('/api/v1/chat/chats/summary', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId }),
-      });
-      const json = await res.json();
-      if (json.summary) {
-        setChats(prev => prev.map(c => c.id === chatId ? { ...c, summary: json.summary } : c));
-        setIsSummaryExpanded(true);
-      }
-    } catch (err) {
-      console.error('Failed to generate summary:', err);
-    } finally {
-      setIsSummarizing(false);
-    }
-  }, [chatId, messages.length]);
-
   const selectChat = useCallback((id: number) => {
     setChatId(id);
     setMessages([WELCOME_MESSAGE]);
     setSidebarOpen(false);
-    setIsSummaryExpanded(false);
     fetch(`/api/v1/chat/messages?cid=${id}`, { credentials: 'include' })
       .then(r => r.json())
       .then(msgJson => {
@@ -163,7 +131,6 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
     setChatId(null);
     setMessages([WELCOME_MESSAGE]);
     setSidebarOpen(false);
-    setIsSummaryExpanded(false);
   }, []);
 
   const deleteChat = useCallback((id: number) => {
@@ -327,16 +294,6 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
               <Plus className="w-3 h-3" />
               New Chat
             </button>
-            {chatId && messages.length > 1 && (
-              <button
-                onClick={generateSummary}
-                disabled={isSummarizing}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold text-gray-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 dark:hover:text-purple-400 border border-gray-200 dark:border-gray-700 uppercase tracking-wider transition-all disabled:opacity-50"
-              >
-                {isSummarizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                {isSummarizing ? 'Meringkas...' : 'Ringkas'}
-              </button>
-            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -374,29 +331,6 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
                  </span>
               </div>
             </div>
-
-            {/* Summary Card */}
-            {activeSummary && (
-              <div className="rounded-2xl border border-purple-100 dark:border-purple-900/30 bg-purple-50 dark:bg-purple-900/10 overflow-hidden">
-                <button
-                  onClick={() => setIsSummaryExpanded(p => !p)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left"
-                >
-                  <div className="flex items-center gap-2 text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">
-                    <FileText className="w-3.5 h-3.5" />
-                    Ringkasan Percakapan
-                  </div>
-                  {isSummaryExpanded
-                    ? <ChevronUp className="w-4 h-4 text-purple-400" />
-                    : <ChevronDown className="w-4 h-4 text-purple-400" />}
-                </button>
-                {isSummaryExpanded && (
-                  <div className="px-4 pb-4 text-sm text-gray-700 dark:text-gray-300 leading-relaxed border-t border-purple-100 dark:border-purple-900/30 pt-3">
-                    {activeSummary}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Fetch error banner */}
             {fetchError && (

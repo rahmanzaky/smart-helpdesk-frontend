@@ -5,13 +5,15 @@ import {
   Filter,
   ShieldCheck,
   Calendar,
-  Send
+  Send,
+  Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from '../elements/Sidebar';
 import ActivityCard, { ActivityLog, ActivityDetail } from '../elements/ActivityCard';
 import FilterModal from '../elements/FilterModal';
-import ChatSummaryPanel from '../elements/ChatSummaryPanel';
+import ChatSummaryPanel, { AdminChat } from '../elements/ChatSummaryPanel';
 
 
 interface AdminPageProps {
@@ -93,6 +95,11 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
   const [isSending, setIsSending] = useState(false);
   const [sendMessage, setSendMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Chat sessions for summary panel
+  const [allChats, setAllChats] = useState<AdminChat[]>([]);
+  const [selectedChat, setSelectedChat] = useState<AdminChat | null>(null);
+  const [activeTab, setActiveTab] = useState<'activity' | 'chats'>('activity');
+
   const fetchLogs = useCallback((start?: string, end?: string) => {
     setLogsLoading(true);
     setLogsError(null);
@@ -126,6 +133,13 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  useEffect(() => {
+    fetch('/api/v1/chat/admin/chats', { credentials: 'include' })
+      .then(r => r.json())
+      .then(json => { if (json.data) setAllChats(json.data); })
+      .catch(err => console.error('Failed to load admin chats:', err));
+  }, []);
 
   const handleApplyFilters = () => {
     fetchLogs(startDate || undefined, endDate || undefined);
@@ -266,6 +280,32 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
             </div>
           )}
 
+          {/* Tab Switcher */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                activeTab === 'activity'
+                  ? 'bg-[#004aad] dark:bg-blue-600 text-white shadow-md'
+                  : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              Log Aktivitas
+            </button>
+            <button
+              onClick={() => setActiveTab('chats')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                activeTab === 'chats'
+                  ? 'bg-[#004aad] dark:bg-blue-600 text-white shadow-md'
+                  : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Ringkasan Chat
+            </button>
+          </div>
+
           {/* Summary Stats Bar */}
           {summary && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -289,37 +329,79 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Grid Container */}
             <div className="flex-1">
-              {logsLoading && (
-                <div className="flex items-center justify-center py-20 text-gray-500 dark:text-gray-400 font-medium">
-                  Loading activity logs...
-                </div>
+              {activeTab === 'activity' && (
+                <>
+                  {logsLoading && (
+                    <div className="flex items-center justify-center py-20 text-gray-500 dark:text-gray-400 font-medium">
+                      Loading activity logs...
+                    </div>
+                  )}
+                  {!logsLoading && logsError && (
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-600 dark:text-red-400 font-medium">
+                      <span>{logsError}</span>
+                      <button type="button" onClick={() => setLogsError(null)} className="shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors">✕</button>
+                    </div>
+                  )}
+                  {!logsLoading && !logsError && filteredLogs.length === 0 && (
+                    <div className="flex items-center justify-center py-20 text-gray-400 dark:text-gray-500 font-medium">
+                      {searchQuery.trim() ? 'Tidak ada karyawan yang cocok.' : 'No activity logs found.'}
+                    </div>
+                  )}
+                  {!logsLoading && !logsError && filteredLogs.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {filteredLogs.map((log) => (
+                        <ActivityCard key={log.id} log={log} onDetailClick={(detail) => setSelectedDetail(detail)} />
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
-              {!logsLoading && logsError && (
-                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-600 dark:text-red-400 font-medium">
-                  <span>{logsError}</span>
-                  <button
-                    type="button"
-                    onClick={() => setLogsError(null)}
-                    className="shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              {!logsLoading && !logsError && filteredLogs.length === 0 && (
-                <div className="flex items-center justify-center py-20 text-gray-400 dark:text-gray-500 font-medium">
-                  {searchQuery.trim() ? 'Tidak ada karyawan yang cocok.' : 'No activity logs found.'}
-                </div>
-              )}
-              {!logsLoading && !logsError && filteredLogs.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredLogs.map((log) => (
-                    <ActivityCard
-                      key={log.id}
-                      log={log}
-                      onDetailClick={(detail) => setSelectedDetail(detail)}
-                    />
-                  ))}
+
+              {activeTab === 'chats' && (
+                <div className="space-y-3">
+                  {allChats.length === 0 && (
+                    <div className="flex items-center justify-center py-20 text-gray-400 dark:text-gray-500 font-medium">
+                      Belum ada sesi chat.
+                    </div>
+                  )}
+                  {allChats
+                    .filter(c => !searchQuery.trim() || c.authorName.toLowerCase().includes(searchQuery.trim().toLowerCase()) || c.title.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+                    .map(chat => {
+                      const hasSummary = !!chat.summary;
+                      let category: string | null = null;
+                      if (hasSummary) {
+                        try { category = JSON.parse(chat.summary!).category; } catch {}
+                      }
+                      return (
+                        <motion.div
+                          key={chat.id}
+                          layout
+                          className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-4 flex items-center gap-4 hover:shadow-md transition-all"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#004aad] dark:text-blue-400 font-extrabold text-sm shrink-0">
+                            {chat.authorName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{chat.title}</p>
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+                              {chat.authorName} · {new Date(chat.createdTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                          {category && (
+                            <span className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-900/20 text-[#004aad] dark:text-blue-400 uppercase tracking-wider">
+                              {category}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => setSelectedChat(chat)}
+                            className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all bg-[#004aad] dark:bg-blue-600 text-white hover:bg-blue-700 dark:hover:bg-blue-500"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {hasSummary ? 'Lihat' : 'Ringkas'}
+                          </button>
+                        </motion.div>
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -399,9 +481,13 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
         />
 
         <ChatSummaryPanel
-          isOpen={!!selectedDetail}
-          onClose={() => setSelectedDetail(null)}
-          detail={selectedDetail}
+          isOpen={!!selectedChat}
+          onClose={() => setSelectedChat(null)}
+          chat={selectedChat}
+          onSummaryGenerated={(chatId, summaryStr) => {
+            setAllChats(prev => prev.map(c => c.id === chatId ? { ...c, summary: summaryStr } : c));
+            setSelectedChat(prev => prev?.id === chatId ? { ...prev, summary: summaryStr } : prev);
+          }}
         />
       </main>
     </div>

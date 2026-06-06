@@ -16,7 +16,6 @@ import { useEffect, useState } from 'react';
 interface ChatSession {
   id: number;
   title: string;
-  summary?: string | null;
   createdTime: string;
 }
 
@@ -91,13 +90,9 @@ export default function Sidebar({ isOpen, onClose, onLogout, currentPage, onNavi
                       className="flex-1 text-left px-3 py-2.5 min-w-0"
                     >
                       <p className="text-sm font-medium truncate">{chat.title}</p>
-                      {chat.summary ? (
-                        <p className="text-[10px] text-purple-400 mt-0.5 truncate">{chat.summary}</p>
-                      ) : (
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          {new Date(chat.createdTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                        </p>
-                      )}
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        {new Date(chat.createdTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </p>
                     </button>
                     <button
                       onClick={e => { e.stopPropagation(); onDeleteChat?.(chat.id); }}
