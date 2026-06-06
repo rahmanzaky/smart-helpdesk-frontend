@@ -57,6 +57,7 @@ const ChatSummaryPanel: React.FC<ChatSummaryPanelProps> = ({ isOpen, onClose, ch
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen || !chat) return;
@@ -92,6 +93,7 @@ const ChatSummaryPanel: React.FC<ChatSummaryPanelProps> = ({ isOpen, onClose, ch
       if (!res.ok) throw new Error(json.error ?? `Error ${res.status}`);
       const summaryStr = typeof json.summary === 'string' ? json.summary : JSON.stringify(json.summary);
       onSummaryGenerated?.(chat.id, summaryStr);
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal membuat ringkasan. Coba lagi.');
     } finally {
@@ -137,11 +139,43 @@ const ChatSummaryPanel: React.FC<ChatSummaryPanelProps> = ({ isOpen, onClose, ch
               </div>
 
               {/* Scrollable body */}
-              <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 custom-scrollbar pb-4">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-6 space-y-6 custom-scrollbar pb-4">
+
+                {/* Summary section — top */}
+                {parsedSummary && (
+                  <div className="space-y-3">
+                    <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 dark:bg-blue-900/30 text-[#004aad] dark:text-blue-400">
+                      {parsedSummary.category}
+                    </span>
+                    <SectionCard icon={<MessageSquare className="w-3.5 h-3.5 text-blue-500" />} label="Topik Diskusi" color="border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10">
+                      {parsedSummary.topic}
+                    </SectionCard>
+                    <SectionCard icon={<Tag className="w-3.5 h-3.5 text-red-400" />} label="Masalah yang Dilaporkan" color="border-red-100 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10">
+                      {parsedSummary.reported_issue}
+                    </SectionCard>
+                    <SectionCard icon={<Wrench className="w-3.5 h-3.5 text-green-500" />} label="Solusi yang Diberikan" color="border-green-100 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10">
+                      {parsedSummary.solution}
+                    </SectionCard>
+                    <SectionCard icon={<TrendingUp className="w-3.5 h-3.5 text-purple-500" />} label="Manfaat" color="border-purple-100 dark:border-purple-900/30 bg-purple-50/50 dark:bg-purple-900/10">
+                      {parsedSummary.benefit}
+                    </SectionCard>
+                    <SectionCard icon={<ArrowRight className="w-3.5 h-3.5 text-orange-500" />} label="Rekomendasi Tindak Lanjut" color="border-orange-100 dark:border-orange-900/30 bg-orange-50/50 dark:bg-orange-900/10">
+                      {parsedSummary.recommendation}
+                    </SectionCard>
+                  </div>
+                )}
+
+                {/* Divider between summary and messages */}
+                {!messagesLoading && messages.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <div className="h-px bg-gray-100 dark:bg-gray-800 flex-1" />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Riwayat Percakapan</span>
+                    <div className="h-px bg-gray-100 dark:bg-gray-800 flex-1" />
+                  </div>
+                )}
 
                 {/* Chat messages */}
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4">Riwayat Percakapan</p>
                   {messagesLoading && (
                     <div className="flex items-center justify-center py-8 text-gray-400 gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -192,38 +226,6 @@ const ChatSummaryPanel: React.FC<ChatSummaryPanelProps> = ({ isOpen, onClose, ch
                   ))}
                 </div>
 
-                {/* Divider */}
-                {!messagesLoading && messages.length > 0 && (
-                  <div className="flex items-center gap-3">
-                    <div className="h-px bg-gray-100 dark:bg-gray-800 flex-1" />
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ringkasan AI</span>
-                    <div className="h-px bg-gray-100 dark:bg-gray-800 flex-1" />
-                  </div>
-                )}
-
-                {/* Summary section */}
-                {parsedSummary && (
-                  <div className="space-y-3">
-                    <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 dark:bg-blue-900/30 text-[#004aad] dark:text-blue-400">
-                      {parsedSummary.category}
-                    </span>
-                    <SectionCard icon={<MessageSquare className="w-3.5 h-3.5 text-blue-500" />} label="Topik Diskusi" color="border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10">
-                      {parsedSummary.topic}
-                    </SectionCard>
-                    <SectionCard icon={<Tag className="w-3.5 h-3.5 text-red-400" />} label="Masalah yang Dilaporkan" color="border-red-100 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10">
-                      {parsedSummary.reported_issue}
-                    </SectionCard>
-                    <SectionCard icon={<Wrench className="w-3.5 h-3.5 text-green-500" />} label="Solusi yang Diberikan" color="border-green-100 dark:border-green-900/30 bg-green-50/50 dark:bg-green-900/10">
-                      {parsedSummary.solution}
-                    </SectionCard>
-                    <SectionCard icon={<TrendingUp className="w-3.5 h-3.5 text-purple-500" />} label="Manfaat" color="border-purple-100 dark:border-purple-900/30 bg-purple-50/50 dark:bg-purple-900/10">
-                      {parsedSummary.benefit}
-                    </SectionCard>
-                    <SectionCard icon={<ArrowRight className="w-3.5 h-3.5 text-orange-500" />} label="Rekomendasi Tindak Lanjut" color="border-orange-100 dark:border-orange-900/30 bg-orange-50/50 dark:bg-orange-900/10">
-                      {parsedSummary.recommendation}
-                    </SectionCard>
-                  </div>
-                )}
               </div>
 
               {/* Sticky footer — always visible */}
