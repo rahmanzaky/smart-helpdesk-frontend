@@ -53,6 +53,12 @@ function apiMessagesToUI(apiMessages: any[]): Message[] {
   return result;
 }
 
+interface ChatSession {
+  id: number;
+  title: string;
+  createdTime: string;
+}
+
 export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: ChatPageProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -61,6 +67,7 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
   const [chatId, setChatId] = useState<number | null>(null);
+  const [chats, setChats] = useState<ChatSession[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -79,20 +86,26 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
     scrollToBottom();
   }, [messages, isTyping]);
 
-  // Load most recent chat on mount
-  useEffect(() => {
-    fetch('/api/v1/chat/chats', { credentials: 'include' })
+  const loadChats = useCallback(() => {
+    return fetch('/api/v1/chat/chats', { credentials: 'include' })
       .then(r => r.json())
       .then(json => {
-        if (json.data?.length > 0) {
-          const recent = json.data[0];
+        if (json.data) setChats(json.data);
+        return json.data as ChatSession[];
+      });
+  }, []);
+
+  // Load chat list and open most recent on mount
+  useEffect(() => {
+    loadChats()
+      .then(data => {
+        if (data?.length > 0) {
+          const recent = data[0];
           setChatId(recent.id);
           return fetch(`/api/v1/chat/messages?cid=${recent.id}`, { credentials: 'include' })
             .then(r => r.json())
             .then(msgJson => {
-              if (msgJson.data?.length > 0) {
-                setMessages(apiMessagesToUI(msgJson.data));
-              }
+              if (msgJson.data?.length > 0) setMessages(apiMessagesToUI(msgJson.data));
             });
         }
       })
@@ -100,12 +113,40 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
         console.error('Failed to load chats:', err);
         setFetchError('Failed to load chat history. Please refresh the page.');
       });
+  }, [loadChats]);
+
+  const selectChat = useCallback((id: number) => {
+    setChatId(id);
+    setMessages([WELCOME_MESSAGE]);
+    setSidebarOpen(false);
+    fetch(`/api/v1/chat/messages?cid=${id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(msgJson => {
+        if (msgJson.data?.length > 0) setMessages(apiMessagesToUI(msgJson.data));
+      })
+      .catch(err => console.error('Failed to load messages:', err));
   }, []);
 
   const startNewChat = useCallback(() => {
     setChatId(null);
     setMessages([WELCOME_MESSAGE]);
+    setSidebarOpen(false);
   }, []);
+
+  const deleteChat = useCallback((id: number) => {
+    fetch('/api/v1/chat/chats', {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId: id }),
+    }).then(() => {
+      setChats(prev => prev.filter(c => c.id !== id));
+      if (chatId === id) {
+        setChatId(null);
+        setMessages([WELCOME_MESSAGE]);
+      }
+    }).catch(err => console.error('Failed to delete chat:', err));
+  }, [chatId]);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -140,6 +181,7 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
         const chatJson = await chatRes.json();
         cid = chatJson.data.id;
         setChatId(cid);
+        loadChats();
       }
 
       // Send message (multipart so we can attach image)
@@ -226,6 +268,11 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
         currentPage="chat"
         onNavigate={onNavigate}
         userRole={userRole}
+        chats={chats}
+        activeChatId={chatId}
+        onSelectChat={selectChat}
+        onNewChat={startNewChat}
+        onDeleteChat={deleteChat}
       />
 
       {/* Main Content */}
@@ -316,11 +363,13 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
               )}
             </div>
 
-            <div className="flex items-center gap-4 py-10 opacity-30">
-               <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1" />
-               <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest whitespace-nowrap">mulai percakapan di sini</span>
-               <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1" />
-            </div>
+            {messages.length <= 1 && (
+              <div className="flex items-center gap-4 py-10 opacity-30">
+                <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1" />
+                <span className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest whitespace-nowrap">mulai percakapan di sini</span>
+                <div className="h-px bg-gray-200 dark:bg-gray-800 flex-1" />
+              </div>
+            )}
           </div>
 
           {/* Input Area */}

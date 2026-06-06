@@ -1,15 +1,23 @@
-import { 
-  MessageSquare, 
-  Settings, 
-  LogOut, 
-  CheckCircle2, 
-  HelpCircle, 
+import {
+  MessageSquare,
+  Settings,
+  LogOut,
+  CheckCircle2,
+  HelpCircle,
   Bot,
   X,
-  History
+  History,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
+
+interface ChatSession {
+  id: number;
+  title: string;
+  createdTime: string;
+}
 
 interface SidebarProps {
   isOpen: boolean;
@@ -18,9 +26,14 @@ interface SidebarProps {
   currentPage: 'chat' | 'admin' | 'settings';
   onNavigate: (page: 'chat' | 'admin' | 'settings') => void;
   userRole?: 'user' | 'admin';
+  chats?: ChatSession[];
+  activeChatId?: number | null;
+  onSelectChat?: (id: number) => void;
+  onNewChat?: () => void;
+  onDeleteChat?: (id: number) => void;
 }
 
-export default function Sidebar({ isOpen, onClose, onLogout, currentPage, onNavigate, userRole = 'user' }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onLogout, currentPage, onNavigate, userRole = 'user', chats = [], activeChatId, onSelectChat, onNewChat, onDeleteChat }: SidebarProps) {
   const [isLargeScreen, setIsLargeScreen] = useState(false);
 
   useEffect(() => {
@@ -49,26 +62,68 @@ export default function Sidebar({ isOpen, onClose, onLogout, currentPage, onNavi
         </button>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-4 flex flex-col gap-1 overflow-hidden">
         {userRole === 'user' && (
-          <button 
-            onClick={() => onNavigate('chat')}
-            className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-semibold transition-all ${
-              currentPage === 'chat' 
-                ? 'bg-blue-50 text-[#004aad] border-r-4 border-[#004aad] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400' 
-                : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }`}
-          >
-            <MessageSquare className="w-5 h-5" />
-            Chat
-          </button>
+          <>
+            <button
+              onClick={onNewChat}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-[#004aad] hover:bg-[#003a8c] transition-all mb-1"
+            >
+              <Plus className="w-4 h-4" />
+              New Chat
+            </button>
+
+            {chats.length > 0 && (
+              <div className="flex-1 overflow-y-auto space-y-0.5 min-h-0">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 py-1">Riwayat Chat</p>
+                {chats.map(chat => (
+                  <div
+                    key={chat.id}
+                    className={`group flex items-center rounded-xl transition-all ${
+                      activeChatId === chat.id
+                        ? 'bg-blue-50 text-[#004aad] dark:bg-blue-900/20 dark:text-blue-400'
+                        : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <button
+                      onClick={() => onSelectChat?.(chat.id)}
+                      className="flex-1 text-left px-3 py-2.5 min-w-0"
+                    >
+                      <p className="text-sm font-medium truncate">{chat.title}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        {new Date(chat.createdTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); onDeleteChat?.(chat.id); }}
+                      className="opacity-0 group-hover:opacity-100 p-2 mr-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => onNavigate('chat')}
+              className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-semibold transition-all mt-1 ${
+                currentPage === 'chat'
+                  ? 'bg-blue-50 text-[#004aad] border-r-4 border-[#004aad] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400'
+                  : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <MessageSquare className="w-5 h-5" />
+              Chat
+            </button>
+          </>
         )}
         {userRole === 'admin' && (
-          <button 
+          <button
             onClick={() => onNavigate('admin')}
             className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-semibold transition-all ${
-              currentPage === 'admin' 
-                ? 'bg-blue-50 text-[#004aad] border-r-4 border-[#004aad] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400' 
+              currentPage === 'admin'
+                ? 'bg-blue-50 text-[#004aad] border-r-4 border-[#004aad] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400'
                 : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
             }`}
           >
@@ -76,11 +131,11 @@ export default function Sidebar({ isOpen, onClose, onLogout, currentPage, onNavi
             Log Aktivitas
           </button>
         )}
-        <button 
+        <button
           onClick={() => onNavigate('settings')}
           className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl font-semibold transition-all ${
-            currentPage === 'settings' 
-              ? 'bg-blue-50 text-[#004aad] border-r-4 border-[#004aad] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400' 
+            currentPage === 'settings'
+              ? 'bg-blue-50 text-[#004aad] border-r-4 border-[#004aad] dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-400'
               : 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
           }`}
         >

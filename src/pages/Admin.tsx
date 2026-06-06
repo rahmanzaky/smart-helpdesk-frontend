@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { 
-  Menu, 
-  Search, 
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Menu,
+  Search,
   Filter,
   ShieldCheck,
-  Calendar
+  Calendar,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from '../elements/Sidebar';
@@ -25,6 +26,12 @@ interface ApiLog {
   userId: number;
   userName: string;
   createdTime: string;
+}
+
+interface Summary {
+  total: number;
+  byAction: Record<string, number>;
+  byUser: { userId: number; userName: string; count: number }[];
 }
 
 function apiLogsToActivityLogs(apiLogs: ApiLog[]): ActivityLog[] {
@@ -73,18 +80,41 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<Summary | null>(null);
 
-  useEffect(() => {
+  // Date range filter state
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Send report state
+  const [isSending, setIsSending] = useState(false);
+  const [sendMessage, setSendMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchLogs = useCallback((start?: string, end?: string) => {
     setLogsLoading(true);
     setLogsError(null);
-    fetch('/api/v1/generate-report', { credentials: 'include' })
+
+    let url = '/api/v1/generate-report';
+    const params = new URLSearchParams();
+    if (start) params.set('s', start);
+    if (end) params.set('e', end);
+    const qs = params.toString();
+    if (qs) url += `?${qs}`;
+
+    fetch(url, { credentials: 'include' })
       .then((r) => {
         if (!r.ok) throw new Error(`Request failed with status ${r.status}`);
         return r.json();
       })
       .then((json) => {
-        const apiLogs: ApiLog[] = Array.isArray(json?.data) ? json.data : [];
+        const apiLogs: ApiLog[] = Array.isArray(json?.data?.logs) ? json.data.logs : [];
         setLogs(apiLogsToActivityLogs(apiLogs));
+        if (json?.data?.summary) {
+          setSummary(json.data.summary);
+        }
       })
       .catch((err) => {
         console.error('Failed to load activity logs:', err);
@@ -92,6 +122,44 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
       })
       .finally(() => setLogsLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const handleApplyFilters = () => {
+    fetchLogs(startDate || undefined, endDate || undefined);
+  };
+
+  const handleSendReport = async () => {
+    setIsSending(true);
+    setSendMessage(null);
+    try {
+      const res = await fetch('/api/v1/generate-report', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(startDate ? { start: startDate } : {}),
+          ...(endDate ? { end: endDate } : {}),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message ?? `Error ${res.status}`);
+      setSendMessage({ type: 'success', text: 'Laporan berhasil dikirim!' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal mengirim laporan.';
+      setSendMessage({ type: 'error', text: message });
+    } finally {
+      setIsSending(false);
+      setTimeout(() => setSendMessage(null), 4000);
+    }
+  };
+
+  // Client-side search filter
+  const filteredLogs = searchQuery.trim()
+    ? logs.filter((log) => log.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : logs;
 
   const tags = ['All', 'T-Stress', 'Alignment', 'Gasket', 'Pressure'];
 
@@ -110,10 +178,10 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
         )}
       </AnimatePresence>
 
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-        onLogout={onLogout} 
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLogout={onLogout}
         currentPage="admin"
         onNavigate={onNavigate}
         userRole={userRole}
@@ -146,29 +214,77 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
 
         <div className="p-6 lg:p-10 max-w-[1600px] mx-auto w-full">
           {/* Dashboard Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">
             <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               Log Aktivitas Karyawan
             </h1>
-            
+
             <div className="flex flex-col md:flex-row gap-4 flex-1 max-w-2xl lg:justify-end">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Cari Karyawan..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/30 transition-all text-sm font-medium dark:text-gray-200"
                 />
               </div>
-              <button 
+              <button
+                onClick={handleSendReport}
+                disabled={isSending}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#004aad] dark:bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-blue-700 dark:hover:bg-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Send className="w-4 h-4" />
+                {isSending ? 'Mengirim...' : 'Kirim Laporan'}
+              </button>
+              <button
                 onClick={() => setIsFilterOpen(true)}
-                className="lg:hidden flex items-center justify-center gap-2 px-6 py-3 bg-[#004aad] dark:bg-blue-600 text-white rounded-xl font-bold"
+                className="lg:hidden flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-xl font-bold"
               >
                 <Filter className="w-4 h-4" />
                 Filter
               </button>
             </div>
           </div>
+
+          {/* Send report feedback */}
+          {sendMessage && (
+            <div className={`mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-sm font-medium border ${
+              sendMessage.type === 'success'
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
+            }`}>
+              <span>{sendMessage.text}</span>
+              <button
+                type="button"
+                onClick={() => setSendMessage(null)}
+                className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Summary Stats Bar */}
+          {summary && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {[
+                { label: 'Total Aktivitas', value: summary.total },
+                { label: 'Total Chat', value: (summary.byAction['CHAT'] ?? 0) + (summary.byAction['MESSAGE'] ?? 0) },
+                { label: 'Total Login', value: summary.byAction['LOGIN'] ?? 0 },
+                { label: 'Total Users', value: summary.byUser.length },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="bg-white dark:bg-gray-900 rounded-2xl px-6 py-5 border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col gap-1"
+                >
+                  <span className="text-2xl font-extrabold text-gray-900 dark:text-white">{stat.value}</span>
+                  <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Grid Container */}
@@ -190,14 +306,14 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                   </button>
                 </div>
               )}
-              {!logsLoading && !logsError && logs.length === 0 && (
+              {!logsLoading && !logsError && filteredLogs.length === 0 && (
                 <div className="flex items-center justify-center py-20 text-gray-400 dark:text-gray-500 font-medium">
-                  No activity logs found.
+                  {searchQuery.trim() ? 'Tidak ada karyawan yang cocok.' : 'No activity logs found.'}
                 </div>
               )}
-              {!logsLoading && !logsError && logs.length > 0 && (
+              {!logsLoading && !logsError && filteredLogs.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {logs.map((log) => (
+                  {filteredLogs.map((log) => (
                     <ActivityCard
                       key={log.id}
                       log={log}
@@ -221,13 +337,23 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                     <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-4">Rentang Tanggal</label>
                     <div className="space-y-3">
                       <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="text" placeholder="dd/mm/yyyy" className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs font-bold outline-none dark:text-gray-200" />
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs font-bold outline-none dark:text-gray-200"
+                        />
                       </div>
                       <div className="text-center text-[10px] font-bold text-gray-300 dark:text-gray-700">TO</div>
                       <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="text" placeholder="dd/mm/yyyy" className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs font-bold outline-none dark:text-gray-200" />
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs font-bold outline-none dark:text-gray-200"
+                        />
                       </div>
                     </div>
                   </div>
@@ -236,12 +362,12 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                     <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest block mb-4">Tipe Masalah</label>
                     <div className="flex flex-wrap gap-2">
                       {tags.map(tag => (
-                        <button 
+                        <button
                           key={tag}
                           onClick={() => setSelectedTag(tag)}
                           className={`px-4 py-2 rounded-full text-[10px] font-bold transition-all ${
-                            selectedTag === tag 
-                              ? 'bg-[#004aad] dark:bg-blue-600 text-white shadow-lg shadow-blue-100 dark:shadow-none' 
+                            selectedTag === tag
+                              ? 'bg-[#004aad] dark:bg-blue-600 text-white shadow-lg shadow-blue-100 dark:shadow-none'
                               : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                           }`}
                         >
@@ -251,7 +377,10 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                     </div>
                   </div>
 
-                  <button className="w-full bg-[#004aad] dark:bg-blue-600 text-white py-4 rounded-xl font-bold text-sm shadow-xl shadow-blue-100 dark:shadow-none hover:bg-blue-700 dark:hover:bg-blue-500 transition-all mt-4">
+                  <button
+                    onClick={handleApplyFilters}
+                    className="w-full bg-[#004aad] dark:bg-blue-600 text-white py-4 rounded-xl font-bold text-sm shadow-xl shadow-blue-100 dark:shadow-none hover:bg-blue-700 dark:hover:bg-blue-500 transition-all mt-4"
+                  >
                     Apply Filters
                   </button>
                 </div>
@@ -261,15 +390,15 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
         </div>
 
         {/* Global Modals/Panels */}
-        <FilterModal 
-          isOpen={isFilterOpen} 
-          onClose={() => setIsFilterOpen(false)} 
+        <FilterModal
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
           tags={tags}
           selectedTag={selectedTag}
           setSelectedTag={setSelectedTag}
         />
 
-        <ChatSummaryPanel 
+        <ChatSummaryPanel
           isOpen={!!selectedDetail}
           onClose={() => setSelectedDetail(null)}
           detail={selectedDetail}
