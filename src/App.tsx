@@ -51,6 +51,22 @@ export default function App() {
     setCurrentPage(page);
   };
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const isResetFlow = urlParams.get('action') === 'reset-password';
+
+  if (isResetFlow) {
+    return (
+      <ErrorBoundary>
+        <Login
+          onLogin={handleLogin}
+          initialView="reset"
+          resetToken={urlParams.get('token') ?? undefined}
+          resetUserId={urlParams.get('id') ? Number(urlParams.get('id')) : undefined}
+        />
+      </ErrorBoundary>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#f8fafc] dark:bg-gray-950">
@@ -60,13 +76,9 @@ export default function App() {
   }
 
   if (!isLoggedIn) {
-    const params = new URLSearchParams(window.location.search);
-    const initialView = params.get('action') === 'reset-password' ? 'reset' : 'login';
-    const resetToken = params.get('token') ?? undefined;
-    const resetUserId = params.get('id') ? Number(params.get('id')) : undefined;
     return (
       <ErrorBoundary>
-        <Login onLogin={handleLogin} initialView={initialView as any} resetToken={resetToken} resetUserId={resetUserId} />
+        <Login onLogin={handleLogin} />
       </ErrorBoundary>
     );
   }
