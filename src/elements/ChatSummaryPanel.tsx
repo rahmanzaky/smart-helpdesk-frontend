@@ -46,9 +46,9 @@ const SectionCard = ({ icon, label, color, children }: { icon: React.ReactNode; 
   <div className={`rounded-2xl border ${color} p-5`}>
     <div className="flex items-center gap-2 mb-2">
       {icon}
-      <span className="text-[10px] font-black uppercase tracking-[0.2em]">{label}</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">{label}</span>
     </div>
-    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">{children}</p>
+    <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed font-medium">{children}</p>
   </div>
 );
 

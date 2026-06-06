@@ -353,7 +353,7 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
                     <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
                     <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full animate-bounce" />
                   </div>
-                  AI is thinking...
+                  Sedang menganalisis...
                 </div>
               )}
             </div>

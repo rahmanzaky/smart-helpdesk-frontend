@@ -144,7 +144,8 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin', curren
       .then((json) => {
         const apiLogs: ApiLog[] = Array.isArray(json?.data?.logs) ? json.data.logs : [];
         setLogs(apiLogsToActivityLogs(apiLogs));
-        if (json?.data?.summary) {
+        // Only update global stats on unfiltered fetches — filtered views should not affect the overall counts
+        if (!start && !end && json?.data?.summary) {
           setSummary(json.data.summary);
         }
       })
