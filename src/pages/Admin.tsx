@@ -397,7 +397,7 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                             className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all bg-[#004aad] dark:bg-blue-600 text-white hover:bg-blue-700 dark:hover:bg-blue-500"
                           >
                             <Sparkles className="w-3.5 h-3.5" />
-                            {hasSummary ? 'Lihat' : 'Ringkas'}
+                            {hasSummary ? 'Lihat Analisis' : 'Analisis'}
                           </button>
                         </motion.div>
                       );
