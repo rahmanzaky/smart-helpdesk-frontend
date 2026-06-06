@@ -9,6 +9,7 @@ export interface ActivityDetail {
   title: string;
   status: string;
   time: string;
+  date: string;
 }
 
 export interface ActivityLog {
@@ -69,7 +70,7 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ log, onDetailClick }) => {
             >
                <div>
                   <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">{detail.title}</h4>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{detail.status} {detail.time}</p>
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{detail.status} · {detail.date} · {detail.time}</p>
                </div>
                <ChevronRight className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover/item:text-[#004aad] dark:group-hover/item:text-blue-400 transition-colors" />
             </div>

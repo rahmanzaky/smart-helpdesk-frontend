@@ -20,12 +20,19 @@ export interface AdminChat {
   createdTime: string;
 }
 
+interface Attachment {
+  id: number;
+  url?: string;
+  fileName: string;
+}
+
 interface Message {
   id: number;
   authorName: string;
   message: string;
   reply: string;
   createdTime: string;
+  attachments?: Attachment[];
 }
 
 interface ChatSummaryPanelProps {
@@ -150,6 +157,15 @@ const ChatSummaryPanel: React.FC<ChatSummaryPanelProps> = ({ isOpen, onClose, ch
                       <div className="flex items-start gap-3 justify-end">
                         <div className="max-w-[80%]">
                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-right mb-1">{msg.authorName}</p>
+                          {msg.attachments && msg.attachments.length > 0 && msg.attachments[0].url && (
+                            <div className="mb-1 flex justify-end">
+                              <img
+                                src={msg.attachments[0].url}
+                                alt={msg.attachments[0].fileName}
+                                className="max-w-[240px] max-h-[180px] rounded-2xl rounded-tr-sm object-cover border border-blue-200 dark:border-blue-800"
+                              />
+                            </div>
+                          )}
                           <div className="bg-[#004aad] dark:bg-blue-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-relaxed">
                             {msg.message}
                           </div>

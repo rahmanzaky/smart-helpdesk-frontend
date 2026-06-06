@@ -66,6 +66,7 @@ function apiLogsToActivityLogs(apiLogs: ApiLog[]): ActivityLog[] {
       details: sorted.slice(0, 10).map((l) => ({
         title: l.action,
         status: 'Logged',
+        date: new Date(l.createdTime).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
         time: new Date(l.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       })),
     });
