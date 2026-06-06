@@ -8,6 +8,10 @@ import {
   Send,
   Sparkles,
   MessageSquare,
+  Users,
+  Trash2,
+  UserPlus,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Sidebar from '../elements/Sidebar';
@@ -20,6 +24,17 @@ interface AdminPageProps {
   onLogout: () => void;
   onNavigate: (page: 'chat' | 'admin' | 'settings') => void;
   userRole?: 'user' | 'admin';
+  currentUserId?: number;
+}
+
+interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  isVerified: boolean;
+  createdTime: string;
+  mustChangePassword: boolean;
 }
 
 interface ApiLog {
@@ -75,7 +90,7 @@ function apiLogsToActivityLogs(apiLogs: ApiLog[]): ActivityLog[] {
   return result;
 }
 
-export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: AdminPageProps) {
+export default function Admin({ onLogout, onNavigate, userRole = 'admin', currentUserId }: AdminPageProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<ActivityDetail | null>(null);
@@ -99,7 +114,16 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
   // Chat sessions for summary panel
   const [allChats, setAllChats] = useState<AdminChat[]>([]);
   const [selectedChat, setSelectedChat] = useState<AdminChat | null>(null);
-  const [activeTab, setActiveTab] = useState<'activity' | 'chats'>('activity');
+  const [activeTab, setActiveTab] = useState<'activity' | 'chats' | 'users'>('activity');
+
+  // User management state
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({ email: '', name: '', role: 'employee' as 'employee' | 'admin' });
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [userToast, setUserToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchLogs = useCallback((start?: string, end?: string) => {
     setLogsLoading(true);
@@ -141,6 +165,74 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
       .then(json => { if (json.data) setAllChats(json.data); })
       .catch(err => console.error('Failed to load admin chats:', err));
   }, []);
+
+  const fetchUsers = useCallback(() => {
+    setUsersLoading(true);
+    setUsersError(null);
+    fetch('/api/v1/admin/users', { credentials: 'include' })
+      .then(r => {
+        if (!r.ok) throw new Error(`Request failed with status ${r.status}`);
+        return r.json();
+      })
+      .then(json => {
+        if (Array.isArray(json?.data)) setAdminUsers(json.data);
+      })
+      .catch(err => {
+        console.error('Failed to load users:', err);
+        setUsersError('Gagal memuat daftar pengguna.');
+      })
+      .finally(() => setUsersLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'users') fetchUsers();
+  }, [activeTab, fetchUsers]);
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddUserLoading(true);
+    try {
+      const res = await fetch('/api/v1/admin/users', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUserForm),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? `Error ${res.status}`);
+      setAdminUsers(prev => [...prev, json.data]);
+      setIsAddUserModalOpen(false);
+      setNewUserForm({ email: '', name: '', role: 'employee' });
+      setUserToast({ type: 'success', text: 'Akun berhasil dibuat! Email selamat datang telah dikirim.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal membuat akun.';
+      setUserToast({ type: 'error', text: message });
+    } finally {
+      setAddUserLoading(false);
+      setTimeout(() => setUserToast(null), 4000);
+    }
+  };
+
+  const handleDeleteUser = async (id: number) => {
+    if (!confirm('Yakin ingin menghapus pengguna ini?')) return;
+    try {
+      const res = await fetch(`/api/v1/admin/users/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json?.error ?? `Error ${res.status}`);
+      }
+      setAdminUsers(prev => prev.filter(u => u.id !== id));
+      setUserToast({ type: 'success', text: 'Pengguna berhasil dihapus.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Gagal menghapus pengguna.';
+      setUserToast({ type: 'error', text: message });
+    } finally {
+      setTimeout(() => setUserToast(null), 4000);
+    }
+  };
 
   const handleApplyFilters = () => {
     fetchLogs(startDate || undefined, endDate || undefined);
@@ -305,6 +397,17 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
               <MessageSquare className="w-4 h-4" />
               Ringkasan Chat
             </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                activeTab === 'users'
+                  ? 'bg-[#004aad] dark:bg-blue-600 text-white shadow-md'
+                  : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Kelola Pengguna
+            </button>
           </div>
 
           {/* Summary Stats Bar */}
@@ -356,6 +459,70 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
                     </div>
                   )}
                 </>
+              )}
+
+              {activeTab === 'users' && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                      {adminUsers.length} pengguna terdaftar
+                    </p>
+                    <button
+                      onClick={() => setIsAddUserModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#004aad] dark:bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Tambah Pengguna
+                    </button>
+                  </div>
+
+                  {userToast && (
+                    <div className={`mb-4 flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-sm font-medium border ${
+                      userToast.type === 'success'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
+                    }`}>
+                      <span>{userToast.text}</span>
+                      <button onClick={() => setUserToast(null)} className="shrink-0 opacity-60 hover:opacity-100">✕</button>
+                    </div>
+                  )}
+
+                  {usersLoading && <div className="py-20 text-center text-gray-400 font-medium">Memuat pengguna...</div>}
+                  {!usersLoading && usersError && <div className="py-8 text-center text-red-500 font-medium">{usersError}</div>}
+                  {!usersLoading && !usersError && (
+                    <div className="space-y-3">
+                      {adminUsers.map(u => (
+                        <div key={u.id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-4 flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[#004aad] dark:text-blue-400 font-extrabold text-sm shrink-0">
+                            {u.name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-bold text-gray-900 dark:text-white">{u.name}</p>
+                              {u.mustChangePassword && (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 uppercase tracking-wider">Ganti Password</span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500">{u.email}</p>
+                          </div>
+                          <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            u.role === 'admin'
+                              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                              : 'bg-blue-50 dark:bg-blue-900/20 text-[#004aad] dark:text-blue-400'
+                          }`}>
+                            {u.role}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="shrink-0 p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {activeTab === 'chats' && (
@@ -480,6 +647,55 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
           selectedTag={selectedTag}
           setSelectedTag={setSelectedTag}
         />
+
+        {/* Add User Modal */}
+        <AnimatePresence>
+          {isAddUserModalOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setIsAddUserModalOpen(false)}
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]" />
+              <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="pointer-events-auto w-full max-w-[480px] bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                  <div className="px-8 pt-8 pb-5 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+                    <h2 className="text-xl font-extrabold text-gray-900 dark:text-white">Tambah Pengguna</h2>
+                    <button onClick={() => setIsAddUserModalOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-400">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleAddUser} className="px-8 py-6 space-y-5">
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Nama</label>
+                      <input type="text" required value={newUserForm.name} onChange={e => setNewUserForm(p => ({ ...p, name: e.target.value }))}
+                        placeholder="Nama lengkap"
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-[#004aad] text-sm font-medium dark:text-gray-200" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Email</label>
+                      <input type="email" required value={newUserForm.email} onChange={e => setNewUserForm(p => ({ ...p, email: e.target.value.toLowerCase() }))}
+                        placeholder="email@epson.com"
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-[#004aad] text-sm font-medium dark:text-gray-200" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2">Role</label>
+                      <select value={newUserForm.role} onChange={e => setNewUserForm(p => ({ ...p, role: e.target.value as 'employee' | 'admin' }))}
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-[#004aad] text-sm font-bold dark:text-gray-200">
+                        <option value="employee">Employee</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Password sementara akan dikirim otomatis ke email. Pengguna wajib menggantinya saat login pertama.</p>
+                    <button type="submit" disabled={addUserLoading}
+                      className="w-full bg-[#004aad] dark:bg-blue-600 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-60">
+                      {addUserLoading ? 'Membuat akun...' : 'Buat Akun & Kirim Email'}
+                    </button>
+                  </form>
+                </motion.div>
+              </div>
+            </>
+          )}
+        </AnimatePresence>
 
         <ChatSummaryPanel
           isOpen={!!selectedChat}

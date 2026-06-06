@@ -4,6 +4,7 @@ import Chat from './pages/Chat';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import ErrorBoundary from './components/ErrorBoundary';
+import ForceChangePassword from './components/ForceChangePassword';
 
 export interface UserInfo {
   id: number;
@@ -11,6 +12,7 @@ export interface UserInfo {
   email: string;
   role: string;
   isVerified: boolean;
+  mustChangePassword?: boolean;
 }
 
 export default function App() {
@@ -79,6 +81,14 @@ export default function App() {
     return (
       <ErrorBoundary>
         <Login onLogin={handleLogin} />
+      </ErrorBoundary>
+    );
+  }
+
+  if (user?.mustChangePassword) {
+    return (
+      <ErrorBoundary>
+        <ForceChangePassword user={user} onPasswordChanged={(updated) => setUser(updated)} />
       </ErrorBoundary>
     );
   }
