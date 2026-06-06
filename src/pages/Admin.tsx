@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Menu, 
   Search, 
@@ -19,41 +19,79 @@ interface AdminPageProps {
   userRole?: 'user' | 'admin';
 }
 
-const MOCK_LOGS: ActivityLog[] = [
-  {
-    id: '1',
-    name: 'Nama Karyawan',
-    employeeId: 'ID: XX-XXX',
-    chats: 3,
-    lastTime: '10:45',
-    initials: 'NK',
-    details: [
-      { title: 'Title', status: 'Terselesaikan', time: '9:15' },
-      { title: 'Title', status: 'Terselesaikan', time: '9:15' },
-      { title: 'Title', status: 'Terselesaikan', time: '9:15' },
-      { title: 'Title', status: 'Terselesaikan', time: '9:15' },
-    ]
-  },
-  // Repeat for grid visualization
-  ...Array(5).fill(null).map((_, i) => ({
-    id: `${i + 2}`,
-    name: 'Nama Karyawan',
-    employeeId: 'ID: XX-XXX',
-    chats: Math.floor(Math.random() * 5) + 1,
-    lastTime: '10:45',
-    initials: 'NK',
-    details: [
-      { title: 'Hardware Issue', status: 'Terselesaikan', time: '9:15' },
-      { title: 'Software Update', status: 'Process', time: '11:20' },
-    ]
-  }))
-];
+interface ApiLog {
+  id: number;
+  action: string;
+  userId: number;
+  userName: string;
+  createdTime: string;
+}
+
+function apiLogsToActivityLogs(apiLogs: ApiLog[]): ActivityLog[] {
+  const byUser = new Map<number, ApiLog[]>();
+  for (const log of apiLogs) {
+    const existing = byUser.get(log.userId) ?? [];
+    existing.push(log);
+    byUser.set(log.userId, existing);
+  }
+
+  const result: ActivityLog[] = [];
+  byUser.forEach((logs, userId) => {
+    const sorted = [...logs].sort(
+      (a, b) => new Date(b.createdTime).getTime() - new Date(a.createdTime).getTime()
+    );
+    const latest = sorted[0];
+    const initials = latest.userName
+      .split(' ')
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? '')
+      .join('');
+
+    result.push({
+      id: String(userId),
+      name: latest.userName,
+      employeeId: `ID: ${userId}`,
+      chats: logs.filter((l) => l.action === 'CHAT' || l.action === 'MESSAGE').length,
+      lastTime: new Date(latest.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      initials,
+      details: sorted.slice(0, 10).map((l) => ({
+        title: l.action,
+        status: 'Logged',
+        time: new Date(l.createdTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      })),
+    });
+  });
+
+  return result;
+}
 
 export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: AdminPageProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState<ActivityDetail | null>(null);
   const [selectedTag, setSelectedTag] = useState('All');
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLogsLoading(true);
+    setLogsError(null);
+    fetch('/api/v1/generate-report', { credentials: 'include' })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Request failed with status ${r.status}`);
+        return r.json();
+      })
+      .then((json) => {
+        const apiLogs: ApiLog[] = Array.isArray(json?.data) ? json.data : [];
+        setLogs(apiLogsToActivityLogs(apiLogs));
+      })
+      .catch((err) => {
+        console.error('Failed to load activity logs:', err);
+        setLogsError('Failed to load activity logs. Please try again.');
+      })
+      .finally(() => setLogsLoading(false));
+  }, []);
 
   const tags = ['All', 'T-Stress', 'Alignment', 'Gasket', 'Pressure'];
 
@@ -135,15 +173,39 @@ export default function Admin({ onLogout, onNavigate, userRole = 'admin' }: Admi
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Grid Container */}
             <div className="flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {MOCK_LOGS.map((log) => (
-                  <ActivityCard 
-                    key={log.id} 
-                    log={log} 
-                    onDetailClick={(detail) => setSelectedDetail(detail)}
-                  />
-                ))}
-              </div>
+              {logsLoading && (
+                <div className="flex items-center justify-center py-20 text-gray-500 dark:text-gray-400 font-medium">
+                  Loading activity logs...
+                </div>
+              )}
+              {!logsLoading && logsError && (
+                <div className="flex items-center justify-between gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-600 dark:text-red-400 font-medium">
+                  <span>{logsError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setLogsError(null)}
+                    className="shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              {!logsLoading && !logsError && logs.length === 0 && (
+                <div className="flex items-center justify-center py-20 text-gray-400 dark:text-gray-500 font-medium">
+                  No activity logs found.
+                </div>
+              )}
+              {!logsLoading && !logsError && logs.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {logs.map((log) => (
+                    <ActivityCard
+                      key={log.id}
+                      log={log}
+                      onDetailClick={(detail) => setSelectedDetail(detail)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Filter Sidebar (Desktop) */}

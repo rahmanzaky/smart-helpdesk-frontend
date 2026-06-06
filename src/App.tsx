@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Chat from './pages/Chat';
 import Admin from './pages/Admin';
 import Settings from './pages/Settings';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export interface UserInfo {
   id: number;
@@ -50,22 +51,48 @@ export default function App() {
     setCurrentPage(page);
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f8fafc] dark:bg-gray-950">
+        <div className="text-gray-500 dark:text-gray-400 font-medium">Loading...</div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <ErrorBoundary>
+        <Login onLogin={handleLogin} />
+      </ErrorBoundary>
+    );
   }
 
   const userRole = user?.role === 'admin' ? 'admin' : 'user';
 
   switch (currentPage) {
     case 'chat':
-      return <Chat onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} user={user} />;
+      return (
+        <ErrorBoundary>
+          <Chat onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} user={user} />
+        </ErrorBoundary>
+      );
     case 'admin':
-      return <Admin onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} />;
+      return (
+        <ErrorBoundary>
+          <Admin onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} />
+        </ErrorBoundary>
+      );
     case 'settings':
-      return <Settings onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} />;
+      return (
+        <ErrorBoundary>
+          <Settings onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} />
+        </ErrorBoundary>
+      );
     default:
-      return <Chat onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} user={user} />;
+      return (
+        <ErrorBoundary>
+          <Chat onLogout={handleLogout} onNavigate={handleNavigate} userRole={userRole} user={user} />
+        </ErrorBoundary>
+      );
   }
 }

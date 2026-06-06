@@ -61,6 +61,8 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
   const [chatId, setChatId] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,7 +96,10 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
             });
         }
       })
-      .catch(err => console.error('Failed to load chats:', err));
+      .catch(err => {
+        console.error('Failed to load chats:', err);
+        setFetchError('Failed to load chat history. Please refresh the page.');
+      });
   }, []);
 
   const startNewChat = useCallback(() => {
@@ -172,15 +177,31 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedImagePreview(event.target?.result as string);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Only JPEG, PNG, WebP, and GIF images are allowed.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
     }
+
+    if (file.size > maxSizeBytes) {
+      setUploadError('Image must be smaller than 5MB.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setUploadError(null);
+    setSelectedImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setSelectedImagePreview(event.target?.result as string);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -264,6 +285,20 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
               </div>
             </div>
 
+            {/* Fetch error banner */}
+            {fetchError && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-600 dark:text-red-400 font-medium">
+                <span>{fetchError}</span>
+                <button
+                  type="button"
+                  onClick={() => setFetchError(null)}
+                  className="shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Messages */}
             <div className="space-y-4">
               {messages.map((m, i) => (
@@ -290,6 +325,18 @@ export default function Chat({ onLogout, onNavigate, userRole = 'user', user }: 
 
           {/* Input Area */}
           <div className="px-6 py-6 lg:px-10">
+            {uploadError && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3 mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-600 dark:text-red-400 font-medium">
+                <span>{uploadError}</span>
+                <button
+                  type="button"
+                  onClick={() => setUploadError(null)}
+                  className="shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             <form onSubmit={handleSendMessage} className="relative group">
               <AnimatePresence>
                 {selectedImagePreview && (
