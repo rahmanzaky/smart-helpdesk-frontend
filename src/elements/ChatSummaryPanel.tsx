@@ -236,10 +236,10 @@ const ChatSummaryPanel: React.FC<ChatSummaryPanelProps> = ({ isOpen, onClose, ch
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="flex items-center gap-2 px-6 py-3 bg-[#004aad] dark:bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-blue-700 dark:hover:bg-blue-500 transition-all disabled:opacity-60"
+                    className="flex items-center gap-2 px-6 py-3 bg-[#004aad] dark:bg-blue-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-blue-700 dark:hover:bg-blue-500 transition-colors whitespace-nowrap disabled:opacity-60"
                   >
-                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {isGenerating ? 'Sedang menganalisis...' : parsedSummary ? 'Perbarui Analisis' : 'Buat Analisis AI'}
+                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <Sparkles className="w-4 h-4 shrink-0" />}
+                    <span>{isGenerating ? 'Sedang menganalisis...' : parsedSummary ? 'Perbarui Analisis' : 'Buat Analisis AI'}</span>
                   </button>
                 </div>
               )}
