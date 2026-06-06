@@ -60,9 +60,13 @@ export default function App() {
   }
 
   if (!isLoggedIn) {
+    const params = new URLSearchParams(window.location.search);
+    const initialView = params.get('action') === 'reset-password' ? 'reset' : 'login';
+    const resetToken = params.get('token') ?? undefined;
+    const resetUserId = params.get('id') ? Number(params.get('id')) : undefined;
     return (
       <ErrorBoundary>
-        <Login onLogin={handleLogin} />
+        <Login onLogin={handleLogin} initialView={initialView as any} resetToken={resetToken} resetUserId={resetUserId} />
       </ErrorBoundary>
     );
   }
